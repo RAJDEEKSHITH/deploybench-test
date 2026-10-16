@@ -1,0 +1,13 @@
+version: 1
+jobs:
+  build:
+    name: Build and Test
+    image: node:20-alpine
+    steps:
+      - name: Print environment
+        run: node -v && npm -v
+      - name: Simulate work
+        run: |
+          echo "Starting build step..."
+          sleep 2
+          echo "Build completed successfully!"
