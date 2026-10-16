@@ -1,13 +1,67 @@
-version: 1
+
 jobs:
-  build:
-    name: Build and Test
-    image: node:20-alpine
-    steps:
-      - name: Print environment
-        run: node -v && npm -v
-      - name: Simulate work
-        run: |
-          echo "Starting build step..."
-          sleep 2
-          echo "Build completed successfully!"
+  checkout-proof:
+    name: Repository Checkout Proof
+    timeoutSeconds: 180
+    maxAttempts: 1
+    commands:
+      - 'echo "========== REPOSITORY CHECKOUT PROOF =========="'
+      - 'echo "CONTAINER_HOSTNAME=$(hostname)"'
+      - 'echo "WORKING_DIRECTORY=$(pwd)"'
+      - 'echo "REPOSITORY_ROOT=$(git rev-parse --show-toplevel)"'
+      - 'echo "CHECKED_OUT_COMMIT=$(git rev-parse HEAD)"'
+      - 'echo "LATEST_COMMIT_DETAILS:"'
+      - 'git log -1 --oneline'
+      - 'echo "========== ROOT DIRECTORY =========="'
+      - 'ls -la'
+      - 'echo "========== TRACKED REPOSITORY FILES =========="'
+      - 'git ls-files | sed -n "1,100p"'
+      - 'echo "========== GIT STATUS =========="'
+      - 'git status --short --branch'
+      - 'test -d client/src && echo CLIENT_SOURCE_DIRECTORY_FOUND || { echo CLIENT_SOURCE_DIRECTORY_MISSING; exit 1; }'
+      - 'test -d server/src && echo SERVER_SOURCE_DIRECTORY_FOUND || { echo SERVER_SOURCE_DIRECTORY_MISSING; exit 1; }'
+      - 'echo "CHECKOUT_PROOF_PASSED"'
+
+  runtime-smoke:
+    name: Independent Docker Runtime Test
+    dependsOn:
+      - checkout-proof
+    timeoutSeconds: 180
+    maxAttempts: 1
+    commands:
+      - 'echo "========== RUNTIME SMOKE TEST =========="'
+      - 'echo "CONTAINER_HOSTNAME=$(hostname)"'
+      - 'echo "CHECKED_OUT_COMMIT=$(git rev-parse HEAD)"'
+      - 'echo "========== NODE.JS VERSION =========="'
+      - 'node --version'
+      - 'echo "========== NPM VERSION =========="'
+      - 'npm --version'
+      - 'echo "========== OPERATING SYSTEM =========="'
+      - 'uname -a'
+      - 'echo "========== RUNTIME EXECUTION =========="'
+      - 'node -e "console.log(\"DEPLOYBENCH_NODE_RUNTIME_OK\")"'
+      - 'echo "========== DELAYED OUTPUT TEST =========="'
+      - 'echo "LOG_STREAM_TEST_STARTED"'
+      - 'sleep 5'
+      - 'echo "LOG_STREAM_TEST_FINISHED"'
+      - 'echo "RUNTIME_SMOKE_PASSED"'
+
+  repository-files-check:
+    name: Verify DeployBench Source Files
+    dependsOn:
+      - runtime-smoke
+    timeoutSeconds: 180
+    maxAttempts: 1
+    commands:
+      - 'echo "========== SOURCE FILE VERIFICATION =========="'
+      - 'echo "CONTAINER_HOSTNAME=$(hostname)"'
+      - 'echo "CHECKED_OUT_COMMIT=$(git rev-parse HEAD)"'
+      - 'test -f client/package.json && echo CLIENT_PACKAGE_JSON_FOUND || { echo CLIENT_PACKAGE_JSON_MISSING; exit 1; }'
+      - 'test -f server/package.json && echo SERVER_PACKAGE_JSON_FOUND || { echo SERVER_PACKAGE_JSON_MISSING; exit 1; }'
+      - 'test -f server/src/services/execution/docker.service.ts && echo DOCKER_SERVICE_SOURCE_FOUND || { echo DOCKER_SERVICE_SOURCE_MISSING; exit 1; }'
+      - 'test -f server/src/services/github/github-repository.service.ts && echo REPOSITORY_SERVICE_SOURCE_FOUND || { echo REPOSITORY_SERVICE_SOURCE_MISSING; exit 1; }'
+      - 'echo "========== CLIENT SOURCE FILES =========="'
+      - 'git ls-files client/src | sed -n "1,50p"'
+      - 'echo "========== SERVER SOURCE FILES =========="'
+      - 'git ls-files server/src | sed -n "1,50p"'
+      - 'echo "SOURCE_FILE_CHECK_PASSED"'
